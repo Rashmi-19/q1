@@ -1,118 +1,51 @@
-def make_table(id,var1,var2,op):
-    global res
-    p1=res['r'+var1]
-    print("----",p1)
-    p2=res['r'+var2]
-    if op=='+':
-        p3=[]
-        p3.extend(p1)
-        p3.extend(p2)
-        k1,k2=set(),set()
-        for i in range(len(p3)):
-            if p3[i][0][0]=='0':
-                k1.add(p3[i][0])
-            elif p3[i][0][0]=='1':
-                k2.add(p3[i][0])
-        l1=['0-'+id,'-','-',k1]
-        l2=['1-'+id,'-','-','-']
-        for i in range(len(p3)):
-            if p3[i][0] in k2:
-                p3[i][-1]='1-'+id
-
-        p3.insert(0,l1)
-        p3.extend(l2)
-        res[id]=p3
-    if op=='.':
-        p3=[]
-def make_closure(id,var,op):
-    global res
-    return
-
-def modify_dict(d):
-    d_copy = d.copy()
-    keys = list(d_copy.keys())
-    for k in range(1, len(keys)):
-        prev_value = d[keys[k-1]]
-        current_value = d[keys[k]]
-        if prev_value in current_value:
-            d_copy[keys[k]] = current_value.replace(prev_value, keys[k-1])
-    return d_copy
-
-symbol={}
-expr={}
-ctr=0
 from collections import deque
-print("Enter the regular expression with appropriate brackets !! ")
-rg=input("Enter the reg expression :- ")
-oper=deque()
-c_close=0
-for i in range(len(rg)):
-    if rg[i]=='(':
-        oper.append(list(rg[i]))
-        print("++++",oper)
-    elif rg[i].isalpha()==True:
-        ctr+=1
-        symbol['r'+str(ctr)]=rg[i]
-        var1=['r'+str(ctr)]
-        #var1=[''.join(list(get_key_from_value(symbol,rg[i])))]
-        var1[0]=var1[0][::-1]
-        oper.append(var1)
-        print("@@",oper)
-    elif rg[i] in '+.*':
-        oper.append(list(rg[i]))
-    elif rg[i]==')':
-        c_close+=1
-        ctr+=1
-        k=len(oper)-1
-        s=")"
-        c1=0
-        while c1!=c_close:
-            if oper[k][0]=='(':
-                c1+=1
-            s+=str(oper[k][0])
-            k-=1
-        oper.append(list(rg[i]))
-        s=s[::-1]
-        expr['r'+str(ctr)]=s
-ctr+=1
-symbol['r'+str(ctr)]='$'
-print(symbol)
-#print(expr)
-id,val=[],[]
-for u,v in symbol.items():
-    id.append(u)
-    val.append(v)
-#print(val)
-res={}
-for i in range(len(id)-1):
-    k=id[i]
-    states=['0-'+str(k),'1-'+str(k)]
-    nfa=[]
-    for i in range(len(states)):
-        mov=[states[i]]
-        for j in range(len(val)):
-            s=val[j]
-            if s==symbol[k] and i==0:
-                mov.append(states[1])
-            else:
-                mov.append('-')
-        nfa.append(mov)
-    res[k]=nfa
-print(res)
 
-expr_modi=modify_dict(expr)
-print("****",expr_modi)
-for i,j in expr_modi.items():
-    k=j[1:-1]
-    if len(k)==5:
-        if k[2]=='+':
-            i1,i2=k[1],k[4]
-            make_table(i,i1,i2,'+')
-        elif k[2]=='.':
-            i1,i2=k[1],k[4]
-            make_table(i,i1,i2,'.')
-    elif len(k)==3:
-        if k[-1]=='*':
-            i1=k[1]
-            make_closure(i,i1,'*')
+def goalTest(currentState, goalState):
+    """Check if the current state is the goal."""
+    return currentState == goalState
+
+def successors(currentState):
+    """Generate successors by either adding 2 or multiplying by 2."""
+    return [currentState + 2, currentState * 2]
+
+def bfs(startState, goalState, successors):
+    """Breadth-first search algorithm."""
+    frontier = deque([startState])  # Queue for BFS
+    cameFrom = {startState: None}  # Track the path
+    
+    while frontier:
+        currentState = frontier.popleft()
+        
+        if goalTest(currentState, goalState):
+            return reconstructPath(cameFrom, startState, currentState)
+        
+        for nextState in successors(currentState):
+            if nextState not in cameFrom:
+                frontier.append(nextState)
+                cameFrom[nextState] = currentState
+                
+    return None  # If no path found
+
+def reconstructPath(cameFrom, start, goal):
+    """Reconstruct the path from start to goal."""
+    current = goal
+    path = []
+    while current != start:
+        path.append(current)
+        current = cameFrom[current]
+    path.append(start)
+    path.reverse()
+    return path
+
+def main():
+    startState = 1
+    goalState = 10
+    path = bfs(startState, goalState, successors)
+    
+    if path:
+        print("Path found:", path)
+    else:
+        print("No path found.")
+
+main()
 
