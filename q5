@@ -1,1 +1,51 @@
+# WS7-Q1
+class SRP:
+    def __init__(self, grammar):
+        self.grammar = grammar
+        self.stack = []
+
+    def parseStack(self, inp1):
+        self.stack = []
+        inputList = inp1.split()
+        inputList.append('$')
+        self.stack.append('$')
+        print(" Stack         Input")
+        while inputList:
+            print(f" {''.join(self.stack)}     {''.join(inputList)}")
+            flag = False
+
+            # Try to reduce
+            for p in self.grammar:
+                if len(self.stack) >= len(p['r']):
+                    if self.stack[-len(p['r']):] == p['r']:
+                        for _ in range(len(p['r'])):
+                            self.stack.pop()
+                        self.stack.append(p['l'])
+                        flag = True
+                        #print(f"Reduce using: {rule['l']} -> {' '.join(rule['r'])}")
+                        break
+
+            if not flag:
+                if inputList[0] == '$' and self.stack == ['$', 'S']:
+                    print("Accepted")
+                    return True
+                elif inputList[0] != '$':
+                    # Shift
+                    shiftSymbol = inputList.pop(0)
+                    self.stack.append(shiftSymbol)
+                    #print(f"Shift: {shiftSymbol}")
+                else:
+                    print("Input rejected")
+                    return False
+
+# Define the grammar
+grammar = [
+    {'l': 'S', 'r': ['S', '+', 'S']},
+    {'l': 'S', 'r': ['S', '*', 'S']},
+    {'l': 'S', 'r': ['id']},
+]
+
+parser = SRP(grammar)
+inp='id + id + id'
+parser.parseStack(inp)
 
