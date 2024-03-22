@@ -1,51 +1,86 @@
-from collections import deque
+# WS7-q2
+def getParserTable():
+  parseTable = {}
+  n = int(input("Enter the number of operators : "))
+  operators = [input("Enter the operator : ") for i in range(n)]
+  for i in range(n):
+    print(f"For operator {operators[i]} : ")
+    eachRow = {}
+    for j in range(n):
+      precedence = input(f"\tOperator {operators[j]} : ")
+      eachRow[operators[j]] = precedence
+    parseTable[operators[i]] = eachRow
+  return parseTable
 
-def goalTest(currentState, goalState):
-    """Check if the current state is the goal."""
-    return currentState == goalState
+#inputString = "id + id * id"
+inputString = input("Enter the input string (with space) : ")
+inputList = inputString.split() + ['$']
 
-def successors(currentState):
-    """Generate successors by either adding 2 or multiplying by 2."""
-    return [currentState + 2, currentState * 2]
+#parseTable = getParserTable()
+#print(parseTable)
 
-def bfs(startState, goalState, successors):
-    """Breadth-first search algorithm."""
-    frontier = deque([startState])  # Queue for BFS
-    cameFrom = {startState: None}  # Track the path
-    
-    while frontier:
-        currentState = frontier.popleft()
-        
-        if goalTest(currentState, goalState):
-            return reconstructPath(cameFrom, startState, currentState)
-        
-        for nextState in successors(currentState):
-            if nextState not in cameFrom:
-                frontier.append(nextState)
-                cameFrom[nextState] = currentState
-                
-    return None  # If no path found
+parseTable = {
+    '+': {'+': '>', '-': '>', '*': '<', '/': '<', 'id': '<', '$': '>'},
+    '-': {'+': '>', '-': '>', '*': '<', '/': '<', 'id': '<', '$': '>'},
+    '*': {'+': '>', '-': '>', '*': '>', '/': '>', 'id': '<', '$': '>'},
+    '/': {'+': '>', '-': '>', '*': '>', '/': '>', 'id': '<', '$': '>'},
+    'id': {'+': '>', '-': '>', '*': '>', '/': '>', 'id': '', '$': '>'},
+    '$': {'+': '<', '-': '<', '*': '<', '/': '<', 'id': '<', '$': ''}
+}
 
-def reconstructPath(cameFrom, start, goal):
-    """Reconstruct the path from start to goal."""
-    current = goal
-    path = []
-    while current != start:
-        path.append(current)
-        current = cameFrom[current]
-    path.append(start)
-    path.reverse()
-    return path
+grammar = [
+    {'lhs': 'E', 'rhs': ['E', '+', 'E']},
+    {'lhs': 'E', 'rhs': ['E', '-', 'E']},
+    {'lhs': 'E', 'rhs': ['E', '*', 'E']},
+    {'lhs': 'E', 'rhs': ['E', '/', 'E']},
+    {'lhs': 'E', 'rhs': ['id']},
+]
 
-def main():
-    startState = 1
-    goalState = 10
-    path = bfs(startState, goalState, successors)
-    
-    if path:
-        print("Path found:", path)
+stack = ['$']
+precedence = "<"
+print("------------------------------------------------------")
+print(f"{'STACK':<20}{'PRECEDENCE':<15}{'INPUT':<20}")
+print("------------------------------------------------------")
+
+# initial state
+print(f"{' '.join(stack):<20}{precedence:<15}{' '.join(inputList):<20}")
+stackVals = []
+precVals = []
+inputVals = []
+
+while inputList:
+    topSymbol = stack[-1] if stack[-1] in parseTable.keys() else stack[-2]
+    nextInput = inputList[0]
+
+    precedence = parseTable[topSymbol].get(nextInput, '')   # to get the next precedence
+
+    if precedence == '<' or precedence == '=':  # we need to push it into the stack : shift
+        stack.append(inputList.pop(0))
+
+    elif precedence == '>': # we need to reduce
+        if 'id' in stack:
+            while 'id' in stack:
+                idx = stack.index('id')
+                stack[idx] = 'E'  # id -> E
+        elif len(stack) >= 3 and stack[-2] in ['+', '-', '*', '/'] and (stack[-3] == 'E' or stack[-1] == 'E'):
+            stack = stack[:-3] + ['E']
+        else:
+            print("Unable to Reduce")
+            break
     else:
-        print("No path found.")
+        print("No valid precedence relation")
+        break
 
-main()
+    stackVals.append(' '.join(stack))
+    precVals.append(precedence)
+    inputVals.append(' '.join(inputList))
+    #print(f"{' '.join(stack):<20}{precedence:<15}{' '.join(inputList):<20}")
 
+    # Acceptance condition
+    if stack == ['$', 'E'] and inputList == ['$']:
+        precVals.append("Accepted")
+        break
+
+del precVals[0]
+for i in range(len(stackVals)):
+  print(f"{stackVals[i]:<20}{precVals[i]:<15}{inputVals[i]:<20}")
