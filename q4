@@ -1,0 +1,85 @@
+# WS8-q3
+#dict1={'S':['ABC'],'A':['a','b','E'],'B':['c','d','E'],'C':['e','f','E']}
+dict1={'S':['AE','ghi','jkl'],'A':['a','b','c'],'B':['b'],'D':['d']}
+p=list(dict1.keys())[::-1]
+dict2={}
+dict3={}
+def first(t,p):
+  for i in p:
+    if not i[0].isupper():
+      dict2.setdefault(t,[]).append(i[0])
+    elif i[0]=='E':
+      dict2.setdefault(t,[]).append('E')
+    else:
+      for j in range(len(i)):
+        if 'E' in dict2[i[j]]:
+          dict2.setdefault(t,[]).extend(dict2[i[j]])
+          continue
+        else:
+          dict2.setdefault(t,[]).extend(dict2[i[j]])
+          break
+
+def follow():
+    dict3.setdefault(p[::-1][0],[]).append('$')
+    for k in p:  
+      for i in dict1:
+        for j in dict1[i]:
+          if k in j:
+            for l in range(len(j)-1):
+              if j[l]==k:
+                #print(j[l],k)
+                if not j[l+1].isupper():
+                  dict3.setdefault(k,[]).append(j[l+1])
+                elif j[l+1].isupper() and j[l+1]!='E':
+                  #pass
+                  dict3.setdefault(k,[]).extend(firstT[j[l+1]])
+                else:
+                  dict3.setdefault(k,[]).extend(dict3[i])
+
+firstT={}
+for i in range(len(dict1)):
+  first(p[i],dict1[p[i]])
+for i in dict2:
+  firstT.setdefault(i,[]).extend(list(set(dict2[i])))
+#First
+print(firstT)
+follow()
+#Follow
+print(dict3)
+
+#WS8-Q4
+# WS8-q4
+import collections
+'''
+E'->A
+T'->B
+Episolon->e
+'''
+table={'E':{'(':'E->TA','i':'E->TA'},
+       'A':{'+':'A->+TA','-':'A->-TA',')':'A->e','$':'A->e'},
+       'T':{'(':'T->FB','i':'T->FB'},
+       'B':{'+':'B->e','-':'B->E',')':'A->e','$':'A->e','*':'B->*FB','/':'B->/FB'},
+       'F':{'(':'F->(E)','i':'F->i'}
+       }
+stack=['$','E']
+inp=collections.deque(['i','+','i','*','+','$'])
+
+print("Stack           Input")
+while inp:
+ 
+  if stack[-1]==inp[0]:
+    inp.popleft()
+    stack.pop()
+    print(f"{''.join(stack)}            {''.join(inp)}")
+  else:    
+    a=stack.pop()
+    try:
+      b=table[a][inp[0]].split('->')[1]
+    except:
+      print("Rejected ")
+      break
+    if b=='e':
+      pass
+    else:
+      stack.extend(list(b)[::-1])
+    print(f"{''.join(stack)}            {''.join(inp)}")
