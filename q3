@@ -1,52 +1,94 @@
-def isSafe(state):
-    """Check if the current state is safe (no one eats anyone)."""
-    farmer, wolf, sheep, cabbage = state
-    # It's safe if the farmer is with the sheep or wolf is not with the sheep,
-    # and if the farmer is with the cabbage or the sheep is not with the cabbage.
-    return (farmer == sheep or wolf != sheep) and (farmer == cabbage or sheep != cabbage)
+# WS8-Q1
+'''
+prod={'S':['Aa','b'], 
+      'A':['Ac','Sd','e']}
+prod1={'S':['Aa','b'], 
+      'A':['Ac','Sd','e']}
 
-def successors(state):
-    """Generate all possible next states from the current state."""
-    farmer, wolf, sheep, cabbage = state
-    s = []
-    # Possible moves: move nothing, wolf, sheep, cabbage
-    for move in [(1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1)]:
-        newState = tuple(x ^ move[i] for i, x in enumerate(state))
-        # Ensure the farmer's move matches the item being moved or farmer moves alone.
-        if newState[0] != farmer:
-            s.append(newState)
-    return [newState for newState in s if isSafe(newState)]
+prod={'A':['Ab','c']}
+prod1={'A':['Ab','c']}
+'''
+prod={'E':['E+T','E-T','T'],
+      'T':['T*F','T%F','F'],
+      'F':['(E)','i']}
+prod1={'E':['E+T','E-T','T'],
+      'T':['T*F','T%F','F'],
+      'F':['(E)','i']}
 
-def dfs(startState, goalState):
-    frontier = [startState]
-    cameFrom = {startState: None}
+terminals=list(prod.keys())
+dict1={}
+
+def leftRecursion(t,p):
+  for i in p:
+    if t not in list(i) :
+      dict1.setdefault(t, []).append(i+t+"'")
+    else:
+      c=''
+      for j in i:
+        if j!=t:
+          c=c+j
+      dict1.setdefault(t+"'",[]).append(c+t+"'") 
+  dict1.setdefault(t+"'",[]).append('E')     
+
+for i in prod:
+  for j in prod[i]:
+    if i in j and i in terminals:
+      terminals.remove(i)
+
+for i in prod:
+  for j in prod[i]:    
+    for k in terminals:
+      if i not in prod[i] and k in j:
+        #print(prod[i],k,j)
+        for m in range(len(prod[k])):
+          c=''
+          for n in j:
+            if n==k:
+              c+=prod[k][m]
+            else:
+              c+=n
+          prod1[i].append(c)
+        prod1[i].remove(j)
+#print(prod1)         
+
+c=0
+for i in prod1:
+  for j in prod[i]:
+    if i not in j:
+      c+=1
+  if c==len(prod[i]):
+    dict1[i]=prod[i]      
+
+for i in prod1:
+  for j in prod1[i]:
+    if i==j[0]:
+      leftRecursion(i,prod1[i])
     
-    while frontier:
-        currentState = frontier.pop()
-        
-        if currentState == goalState:
-            return reconstructPath(cameFrom, startState, currentState)
-        
-        for nextState in successors(currentState):
-            if nextState not in cameFrom:
-                frontier.append(nextState)
-                cameFrom[nextState] = currentState
+    
+for i in dict1:
+  print(i,'->','| '.join(list(set(dict1[i]))))
 
-def reconstructPath(cameFrom, start, goal):
-    current = goal
-    path = []
-    while current != start:
-        path.append(current)
-        current = cameFrom[current]
-    path.append(start)
-    path.reverse()
-    return path
-
-startState = (1, 1, 1, 1)  # All on the initial side
-goalState = (0, 0, 0, 0)  # All on the opposite side
-
-path = dfs(startState, goalState)
-if path:
-    print("Path found:", path)
-else:
-    print("No path found.")
+#WS8-Q2
+# WS8-q2
+def leftFactoring(s):
+ k=[]
+ l=[]
+ n=""
+ k=s.split('->')
+ 
+ l=k[1].split('/')
+ for i in range(0,len(l)-1):
+    for j in range(0,min(len(l[i]),len(l[i+1]))):
+        if(l[i][j]==l[i+1][j]):
+            if l[i][j] not in n:
+                n=n+l[i][j]
+ print(k[0]+'->'+n+"R")
+ m=k[1].split(n)
+ print("R->",end="")
+ for i in range(1,len(m)):
+    print(m[i],end="")
+ print("\n")
+s=input("Enter the production: ").split(',')
+for i in range(len(s)):
+    leftFactoring(s[i])
+    
