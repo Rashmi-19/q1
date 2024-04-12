@@ -1,69 +1,202 @@
-def calculate_area_and_weighted_area(rule, fuzzy_value):
-    throttle_mem = membership_values[rule[2]]
-    
-    m1 = (1 - 0) / (throttle_mem[1] - throttle_mem[0])
-    m2 = (0 - 1) / (throttle_mem[3] - throttle_mem[2])
-    
-    a1 = (fuzzy_value - 0) * (throttle_mem[1] - throttle_mem[0]) / m1 + throttle_mem[0]
-    a2 = (fuzzy_value - 1) * (throttle_mem[3] - throttle_mem[2]) / m2 + throttle_mem[2]
-    
-    a = a2 - a1
-    b = throttle_mem[3] - throttle_mem[0]
-    
-    plt.plot([a1, a2], [fuzzy_value, fuzzy_value])
-    
-    area = 0.5 * fuzzy_value * (a + b)
-    weighted_area = area * (throttle_mem[1] + throttle_mem[2]) / 2
-    
-    return (area, weighted_area)
-----
-import matplotlib.pyplot as plt
-import numpy as np
+def takeGrammar():
+  grammar = {}
 
-y = [1, 1, 0, 1, 0, 1, 0, 1, 1]
-y1 = [0, 0, 1, 0, 1, 0, 1, 0, 0]
-speed = [0, 31, 61, 95, 127, 159, 191, 223, 255]
-acc = [0, 31, 61, 95, 127, 159, 191, 223, 255]
-tc = [0, 31, 61, 95, 127, 159, 191, 223, 255]
+  production = ''
+  while production != '#':
+    production = input("Enter the production : ")
+    currProd = production.split("->")
+    lhs = currProd[0]
+    rhs = ''.join(currProd[1:]).split('/')
+    grammar[lhs] = rhs
+  return grammar
 
-plt.subplot(3, 1, 1)  
-plt.plot(speed, y, color='blue')
-plt.plot(speed, y1, color='blue')
-plt.xticks(speed)
-plt.title('Speed Data')
 
-plt.subplot(3, 1, 2)
-plt.plot(acc, y, color='red')
-plt.plot(acc, y1, color='red')
-plt.xticks(acc)
-plt.title('Acceleration Data')
+grammar = {'S': ['AA'], 'A': ['aA', 'b'], '#': ['']}
+print(grammar)
 
-plt.subplot(3, 1, 3)
-plt.plot(tc, y, color='green')
-plt.plot(tc, y1, color='green')
-plt.xticks(tc)
-plt.title('Throttle control Data')
+# find the augmented grammar
+augGrammar = {'S\'' : ['.S']}
+for lhs, rhs in grammar.items():
+  augmented = []
+  if lhs != '#':
+    for item in rhs:
+      augmented.append('.' + item)
+    augGrammar[lhs] = augmented
 
-plt.tight_layout()  
+print(augGrammar)
 
-plt.show()
+def Generatelr0(grammar):
+    items = []
+    for lhs, rhsList in grammar.items():
+        for rhs in rhsList:
+            for position in range(len(rhs) + 1):
+                item = (lhs, rhs[:position] + '.' + rhs[position:])
+                items.append(item)
+    return items
 
-s_val=int(input("Enter speed val:"))
-closest_lower_idx = np.where(np.array(speed) < s_val)[0][-1]
-closest_upper_idx = np.where(np.array(speed) > s_val)[0][0]
+grammar = {'S\'' : ['S'], 'S': ['AA'], 'A': ['aA', 'b']}
+lr0Items = Generatelr0(grammar)
+print(lr0Items)
 
-y_1= y[closest_lower_idx] + ((y[closest_upper_idx] - y[closest_lower_idx]) / (speed[closest_upper_idx] - speed[closest_lower_idx])) * (s_val - speed[closest_lower_idx])
-y1_1 = y1[closest_lower_idx] + ((y1[closest_upper_idx] - y1[closest_lower_idx]) / (speed[closest_upper_idx] - speed[closest_lower_idx])) * (s_val - speed[closest_lower_idx])
+def closure(items, grammar):
+    closureSet = set(items)
+    added = True
+    while added:
+        added = False
+        for (lhs, rhs) in list(closureSet):
+            dot_position = rhs.find('.')
+            if dot_position < len(rhs) - 1:
+                next_symbol = rhs[dot_position + 1]
+                for production in grammar.get(next_symbol, []):
+                    new_item = (next_symbol, '.' + production)
+                    if new_item not in closureSet:
+                        closureSet.add(new_item)
+                        added = True
+    return closureSet
 
-print(f"Interpolated value of y at speed = {s_val}: {y_1}")
-print(f"Interpolated value of y1 at speed = {s_val}: {y1_1}")
+def goto(items, symbol, grammar):
+    gotoSet = set()
+    for (lhs, rhs) in items:
+        dotPosition = rhs.find('.')
+        if dotPosition < len(rhs) - 1 and rhs[dotPosition + 1] == symbol:
+            movedItem = (lhs, rhs[:dotPosition] + symbol + '.' + rhs[dotPosition + 2:])
+            gotoSet.add(movedItem)
+    return closure(gotoSet, grammar)
 
-a_val=int(input("Enter acc val:"))
-closest_lower_idx1 = np.where(np.array(speed) < a_val)[0][-1]
-closest_upper_idx1 = np.where(np.array(speed) > a_val)[0][0]
+def construct_dfa(start_symbol, grammar):
+    initial_item = (start_symbol, '.' + grammar[start_symbol][0])
+    initial_state = closure({initial_item}, grammar)
 
-y2= y[closest_lower_idx1] + ((y[closest_upper_idx1] - y[closest_lower_idx1]) / (acc[closest_upper_idx1] - acc[closest_lower_idx1])) * (a_val - acc[closest_lower_idx1])
-y1_2 = y1[closest_lower_idx1] + ((y1[closest_upper_idx1] - y1[closest_lower_idx1]) / (acc[closest_upper_idx1] - acc[closest_lower_idx1])) * (a_val - acc[closest_lower_idx1])
+    states = [initial_state]
+    transitions = [] # Each transition is a tuple (from_state, symbol, to_state)
+    state_index = {tuple(initial_state): 0} # Map state sets to state indexes
 
-print(f"Interpolated value of y at acc = {a_val}: {y2}")
-print(f"Interpolated value of y1 at acc = {a_val}: {y1_2}")
+    queue = [initial_state] # Queue for BFS
+    while queue:
+        current_state = queue.pop(0)
+        current_index = state_index[tuple(current_state)]
+
+        # For each symbol in the grammar, try to apply goto
+        symbols = set(symbol for item in current_state for symbol in item[1] if symbol != '.')
+        for symbol in symbols:
+            next_state = goto(current_state, symbol, grammar)
+            if not next_state:
+                continue # Skip if no transition occurs
+
+            if tuple(next_state) not in state_index:
+                # Found a new state
+                state_index[tuple(next_state)] = len(states)
+                states.append(next_state)
+                queue.append(next_state)
+
+            next_index = state_index[tuple(next_state)]
+            transitions.append((current_index, symbol, next_index))
+
+    return states, transitions
+
+start_symbol = "S'"
+
+dfa_states, dfa_transitions = construct_dfa(start_symbol, grammar)
+
+# To display the DFA states and transitions
+print(f"States (number of states: {len(dfa_states)}):")
+for i, state in enumerate(dfa_states):
+    print(f"State {i}: {state}")
+
+print("\nTransitions:")
+for transition in dfa_transitions:
+    print(f"From state {transition[0]} to state {transition[2]} via symbol '{transition[1]}'")
+
+def compute_first_sets(grammar):
+    first_sets = {key: set() for key in grammar}
+    changed = True
+
+    while changed:
+        changed = False
+        for nonterminal, productions in grammar.items():
+            for production in productions:
+                # For ε-productions
+                if production == 'ε':
+                    if 'ε' not in first_sets[nonterminal]:
+                        first_sets[nonterminal].add('ε')
+                        changed = True
+                else:
+                    for symbol in production:
+                        if symbol in grammar:  # Non-terminal
+                            original_len = len(first_sets[nonterminal])
+                            first_sets[nonterminal].update(first_sets[symbol] - {'ε'})
+                            if 'ε' not in first_sets[symbol]:
+                                break
+                            if original_len != len(first_sets[nonterminal]):
+                                changed = True
+                        else:  # Terminal
+                            if symbol not in first_sets[nonterminal]:
+                                first_sets[nonterminal].add(symbol)
+                                changed = True
+                            break
+    return first_sets
+
+def compute_follow_sets(grammar, first_sets, start_symbol):
+    follow_sets = {key: set() for key in grammar}
+    follow_sets[start_symbol].add('$')  # End of input symbol for start symbol
+
+    changed = True
+    while changed:
+        changed = False
+        for nonterminal, productions in grammar.items():
+            for production in productions:
+                follow_temp = follow_sets[nonterminal]
+                for symbol in reversed(production):
+                    if symbol in follow_sets:
+                        original_len = len(follow_sets[symbol])
+                        follow_sets[symbol].update(follow_temp)
+                        if 'ε' in first_sets[symbol]:
+                            follow_temp = follow_temp.union(first_sets[symbol] - {'ε'})
+                        else:
+                            follow_temp = first_sets[symbol]
+                        if original_len != len(follow_sets[symbol]):
+                            changed = True
+                    else:
+                        follow_temp = {symbol}
+    return follow_sets
+
+def construct_slr_table(grammar, dfa_states, dfa_transitions, start_symbol):
+    action_table = {}
+    goto_table = {}
+    first_sets = compute_first_sets(grammar)
+    follow_sets = compute_follow_sets(grammar, first_sets, start_symbol)
+
+    for i, state in enumerate(dfa_states):
+        for item in state:
+            lhs, rhs = item
+            if '.' not in rhs[-1]: # A production can be reduced
+                for symbol in follow_sets[lhs]:
+                    action_table[(i, symbol)] = ('reduce', lhs, rhs.replace('.', ''))
+            if rhs[-1] == '.': # Accept condition for augmented grammar
+                if lhs == start_symbol:
+                    action_table[(i, '$')] = ('accept',)
+
+        for transition in dfa_transitions:
+            from_state, symbol, to_state = transition
+            if from_state == i:
+                if symbol.isupper(): # A goto for a non-terminal
+                    goto_table[(i, symbol)] = to_state
+                else: # A shift for a terminal
+                    action_table[(i, symbol)] = ('shift', to_state)
+
+
+    return action_table, goto_table
+
+action_table, goto_table = construct_slr_table(grammar, dfa_states, dfa_transitions, start_symbol)
+
+# Displaying the tables
+print("Action Table:")
+for key, value in sorted(action_table.items()):
+    print(f"State {key[0]}, Symbol '{key[1]}': {value}")
+
+print("\nGoto Table:")
+for key, value in sorted(goto_table.items()):
+    print(f"State {key[0]}, Symbol '{key[1]}': Goto State {value}")
+
+
+print(action_table)
