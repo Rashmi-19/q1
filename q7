@@ -1,83 +1,51 @@
-print("Recursive Desent Parsing For following grammar\n")
-print("E->TE'\nE'->+TE'/e\nT->FT'\nT'->*FT'/e\nF->(E)/i\n")
-print("Enter the string want to be checked\n")
-global s
-s=list(input())
-global i
-i=0
-def match(a):
-    global s
-    global i
-    if(i>=len(s)):
-        return False
-    elif(s[i]==a):
-        i+=1
-        return True
+#WS10 q3
+def infix_to_postfix(exp):
+  oper_stack=[]
+  output=[]
+  associativity={'NOT':'right','AND':'left','OR':'left'}
+  precedence={'NOT':3,'OR':1,'AND':2}
+  for token in exp.split():
+    if token not in list(precedence.keys()):
+      output.append(token)
     else:
-        return False
-def F():
-  if match('('):
-    if E():
-      if match(')'):
-        return True
+      while (oper_stack and precedence.get(token,0)<=precedence.get(oper_stack[-1],0) and (associativity[token]=='left' or precedence[token]<=precedence[oper_stack[-1]])):
+        output.append(oper_stack.pop())
+      oper_stack.append(token)
+  while oper_stack:
+    output.append(oper_stack.pop())
+  return ' '.join(output)
+
+class ThreeAddressCode:
+  def __init__(self):
+    self.code=[]
+    self.temp_Count=0
+    self.root=None
+  def generate_temp(self):
+    temp=f't{self.temp_Count}'
+    self.temp_Count+=1
+    return temp
+  def generate_code(self,exp):
+    stack=[]
+    lines=[]
+    for token in exp.split():
+      if token=='NOT':
+        op=stack.pop()
+        temp=self.generate_temp()
+        self.code.append(('NOT',op,temp))
+        stack.append(temp)
+      elif token in ['OR','AND']:
+        op2=stack.pop()
+        op1=stack.pop()
+        temp=self.generate_temp()
+        self.code.append((token,op1,op2,temp))
+        stack.append(temp)
       else:
-        return False
-    else:
-      return False
-  elif match('i'):
-    print('i')
-    return True
-  else:
-    return False
+        stack.append(token)
+    for line in self.code:
+      print(line)
+    print(stack)
 
-def TP():
-  if match('*'):
-    print('*')
-    if F():
-      if TP():
-        return True
-      else:
-        return False
-    return False
-  else:
-    return True
-
-def T():
-  if F():
-    if TP():
-      return True
-    else:
-      return False
-  else:
-    return False
-
-def EP():
-  if match('+'):
-    print('+')
-    if T():
-      if EP():
-        return True
-      else:
-        return False
-    else:
-      return False
-  else:
-    return True
-
-def E():
-  if T():
-    if EP():
-      return True
-    else:
-      return False
-  else:
-    return False
-
-if E():
-  
-  if len(s)==i:
-    print("String Accepted")
-  else:
-    print("String not Accepted")
-else:
-  print("String not Accepted")
+expression = "NOT b OR c AND d"
+postfix_expression = infix_to_postfix(expression)
+generator = ThreeAddressCode()
+generator.generate_code(postfix_expression)
