@@ -1,85 +1,197 @@
-# WS8-q3
-#dict1={'S':['ABC'],'A':['a','b','E'],'B':['c','d','E'],'C':['e','f','E']}
-dict1={'S':['AE','ghi','jkl'],'A':['a','b','c'],'B':['b'],'D':['d']}
-p=list(dict1.keys())[::-1]
-dict2={}
-dict3={}
-def first(t,p):
-  for i in p:
-    if not i[0].isupper():
-      dict2.setdefault(t,[]).append(i[0])
-    elif i[0]=='E':
-      dict2.setdefault(t,[]).append('E')
+#Q3) Intermediate code generation
+#works only for binary operators
+
+from collections import *
+from prettytable import PrettyTable
+
+class Node:
+  def __init__(self, value=None, left=None, right=None, next=None):
+    self.value=value
+    self.left=left
+    self.right=right
+    self.next=next
+
+
+class Stack:
+  def __init__(self):
+    self.top=None
+
+  def push(self, node):
+    if not self.top : #stack is empty
+      self.top=node
+
     else:
-      for j in range(len(i)):
-        if 'E' in dict2[i[j]]:
-          dict2.setdefault(t,[]).extend(dict2[i[j]])
-          continue
+      node.next=self.top
+      self.top=node
+
+  def pop(self):
+
+    if not self.top: #stack is empty
+      print("stack is empty!")
+
+    else:
+      popped=self.top
+      self.top=self.top.next
+      return popped
+
+class SyntaxTree:
+  def inorder(self, p):
+    if (not p):
+      return
+    self.inorder(p.left)
+    print(p.value,end="\t")
+    self.inorder(p.right)
+
+#expr = input("Enter the arithmetic expression with brackets: ")
+expr="((a+b)*(a-b))"
+print("INPUT EXPRESSION: ", expr)
+print("\n\n")
+
+stack = []
+postfix = []
+
+precedence={'*':2,"/":2,"+":1,"-":1}
+
+
+#infix to postfix conversion:
+
+for i in range(len(expr)):
+    if (expr[i] == '('):
+        stack.append(expr[i])
+
+    elif (expr[i].isalpha()):
+        postfix.append(expr[i])
+
+    elif ((expr[i] in list(precedence.keys())) and stack[-1] == '('):
+        stack.append(expr[i])
+
+    elif (expr[i] in list(precedence.keys()) and stack[-1] in list(precedence.keys())):
+        if (precedence[expr[i]] > precedence[stack[-1]]):
+            stack.append(expr[i])
         else:
-          dict2.setdefault(t,[]).extend(dict2[i[j]])
-          break
+            while (len(stack) and stack[-1] != '(' and stack[-1] != ')' and precedence[expr[i]] <= precedence[stack[-1]]):
+                postfix += stack.pop()
+            stack.append(expr[i])
 
-def follow():
-    dict3.setdefault(p[::-1][0],[]).append('$')
-    for k in p:  
-      for i in dict1:
-        for j in dict1[i]:
-          if k in j:
-            for l in range(len(j)-1):
-              if j[l]==k:
-                #print(j[l],k)
-                if not j[l+1].isupper():
-                  dict3.setdefault(k,[]).append(j[l+1])
-                elif j[l+1].isupper() and j[l+1]!='E':
-                  #pass
-                  dict3.setdefault(k,[]).extend(firstT[j[l+1]])
+    elif (expr[i] == ')'):
+        if len(stack) != 0:
+            while (True):
+                elt = stack.pop()
+                if (elt == '('):
+                    break
                 else:
-                  dict3.setdefault(k,[]).extend(dict3[i])
+                    postfix += elt
 
-firstT={}
-for i in range(len(dict1)):
-  first(p[i],dict1[p[i]])
-for i in dict2:
-  firstT.setdefault(i,[]).extend(list(set(dict2[i])))
-#First
-print(firstT)
-follow()
-#Follow
-print(dict3)
+print("POSTFIX NOTATION: ", postfix)
 
-#WS8-Q4
-# WS8-q4
-import collections
-'''
-E'->A
-T'->B
-Episolon->e
-'''
-table={'E':{'(':'E->TA','i':'E->TA'},
-       'A':{'+':'A->+TA','-':'A->-TA',')':'A->e','$':'A->e'},
-       'T':{'(':'T->FB','i':'T->FB'},
-       'B':{'+':'B->e','-':'B->E',')':'A->e','$':'A->e','*':'B->*FB','/':'B->/FB'},
-       'F':{'(':'F->(E)','i':'F->i'}
-       }
-stack=['$','E']
-inp=collections.deque(['i','+','i','*','+','$'])
+operators=['+','*','/','-']
 
-print("Stack           Input")
-while inp:
- 
-  if stack[-1]==inp[0]:
-    inp.popleft()
-    stack.pop()
-    print(f"{''.join(stack)}            {''.join(inp)}")
-  else:    
-    a=stack.pop()
-    try:
-      b=table[a][inp[0]].split('->')[1]
-    except:
-      print("Rejected ")
-      break
-    if b=='e':
-      pass
-    else:
-      stack.extend(list(b)[::-1])
-    print(f"{''.join(stack)}            {''.join(inp)}")
+#Syntax tree construction:
+tree_stack=Stack()
+syntax_tree=SyntaxTree()
+
+for c in postfix:
+  if c in operators:
+    operator=Node(c)
+    op2=tree_stack.pop()
+    op1=tree_stack.pop()
+    operator.left=op1
+    operator.right=op2
+    tree_stack.push(operator)
+
+  elif c.isalpha():
+    new_node=Node(c)
+    tree_stack.push(new_node)
+
+root=tree_stack.pop()
+
+print("\n\nSYNTAX TREE -> Inorder traversal:")
+syntax_tree.inorder(root)
+
+
+#intermediate code generation:
+
+for i in range(len(postfix)):
+  postfix[i]=str(postfix[i])
+
+temp_num=0
+code=defaultdict(list)
+i=0
+while(i<len(postfix)):
+  if(postfix[i] in operators):
+    left=postfix[i-2]
+    right=postfix[i-1]
+
+    lhs='T'+str(temp_num)
+    code[lhs].append(left)
+    code[lhs].append(postfix[i])
+    code[lhs].append(right)
+
+    temp_num+=1
+    postfix[i-2:i+1]="$"
+    i-=2
+    postfix[i]=lhs
+
+  i+=1
+
+print("\n\nIntermediate code: \n")
+for key in code:
+  print(key+" = "+" ".join(code[key]))
+  print("\n")
+
+
+#Quadruples:
+
+quadruple=PrettyTable(["Operator", "Argument 1", "Argument 2", "Result"])
+
+
+print("Quadruples: \n")
+for key in code:
+  rhs=code[key]
+  for i in range(len(rhs)):
+    if(rhs[i] in operators):
+      op1=rhs[i-1]
+      op2=rhs[i+1]
+
+      quadruple.add_row([rhs[i],op1,op2,key])
+
+print(quadruple)
+
+#Triples:
+
+triple = PrettyTable(["S_No","Operator", "Argument 1", "Argument 2"])
+print("\n\n")
+count=1
+serial_nos={}
+for c in list(code.keys()):
+  serial_nos[c]=count
+  count+=1
+
+print("Triples\n")
+
+count_str="1"
+for key in code:
+  rhs=code[key]
+  for i in range(len(rhs)):
+    if(rhs[i] in operators):
+      op1=rhs[i-1]
+      op2=rhs[i+1]
+
+      if(op1 in list(serial_nos.keys())):
+        op1=serial_nos[op1]
+
+      if(op2 in list(serial_nos.keys())):
+        op2=serial_nos[op2]
+
+      triple.add_row([count_str,rhs[i],op1,op2])
+      count_str=str(int(count_str)+1)
+
+
+print(triple)
+
+#in case of unary:
+# If an operator is the first thing in your expression,
+# or comes after another operator, or
+# comes after a left parenthesis, then it's an unary operator.
+
+#((a*b)+c)
