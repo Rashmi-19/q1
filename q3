@@ -1,34 +1,78 @@
-def expected_sum_discounted_rewards(states, rewards, transitions, discount_factor, initial_state):
+# HISTOGRAM EQUALIZATION
+
+import cv2
+import numpy as np
+import random   
+import matplotlib.pyplot as plt
+
+image = cv2.imread('b_w.jpg', cv2.COLOR_BGR2GRAY)
+
+histogram = cv2.calcHist(image, [0], None, [256], [0, 256])
+
+plt.xlabel("pixel value")
+plt.ylabel("count")
+plt.plot(histogram)
+plt.legend()
+plt.show()
+
+eq_histogram_image = cv2.equalizeHist(image)
+eq_histogram = cv2.calcHist(eq_histogram_image, [0], None, [256], [0, 256])
 
 
-  # Initialize a dictionary to store expected rewards for each state
-  value_of_states = {state: 0 for state in states}
+plt.xlabel("pixel value")
+plt.ylabel("count")
+plt.plot(eq_histogram)
+plt.legend()
+plt.show()
 
-  # Iterate for multiple steps to achieve convergence (optional)
-  for _ in range(10):  # Adjust the number of iterations as needed
-    # Update value for each state using the Bellman equation
-    for state in states:
-      expected_future_reward = 0
-      for next_state, probability in transitions[state].items():
-        # Expected future reward considering all possible next states
-        expected_future_reward += probability * (rewards[next_state] + discount_factor * value_of_states[next_state])
-      value_of_states[state] = rewards[state] + discount_factor * expected_future_reward
+cv2.imshow("original", image)
+cv2.waitKey(0)
 
-  return value_of_states
+cv2.imshow("Equalized", eq_histogram_image)
+cv2.waitKey(0)
 
-# Example usage (replace placeholders with your actual values)
-states = ["Sunny", "Windy", "Hail"]
-rewards = {"Sunny": 4, "Windy": 0, "Hail": -8}
-transitions = {
-  "Sunny": {"Sunny": 0.5, "Windy": 0.5, "Hail": 0.5},
-  "Windy": {"Sunny": 0.5, "Windy": 0.5, "Hail": 0.5},
-  "Hail": {"Sunny": 0.5, "Windy": 0.5, "Hail": 0.5},
-}
-discount_factor = 0.9
-initial_state = "Sunny"
+cv2.destroyAllWindows()
 
-expected_rewards = expected_sum_discounted_rewards(states, rewards, transitions, discount_factor, initial_state)
+# HISTOGRAM MATCHING
 
-print(f"Expected sum of discounted rewards for each state:")
-for state, reward in expected_rewards.items():
-  print(f"\t{state}: {reward:.2f}")
+import cv2
+import numpy as np
+
+def histogram_matching(source, reference):
+    # Calculate the histograms.
+    src_hist, bins = np.histogram(source.flatten(), 256, [0,256])
+    ref_hist, bins = np.histogram(reference.flatten(), 256, [0,256])
+
+    # Calculate the cumulative distribution function for both histograms.
+    src_cdf = np.cumsum(src_hist)
+    src_cdf_normalized = src_cdf / float(src_cdf.max())
+    ref_cdf = np.cumsum(ref_hist)
+    ref_cdf_normalized = ref_cdf / float(ref_cdf.max())
+
+    # Create a lookup table to map pixel values from the source to the reference.
+    lookup_table = np.zeros(256)
+    g_j = 0
+    for g_i in range(256):
+        while ref_cdf_normalized[g_j] < src_cdf_normalized[g_i] and g_j < 255:
+            g_j += 1
+        lookup_table[g_i] = g_j
+
+    # Map the pixel values of the source image through the lookup table.
+    matched_image = lookup_table[source.flatten()].reshape(source.shape).astype(np.uint8)
+
+    return matched_image
+
+# Load source and reference images
+source_img = cv2.imread('scenery.jpg', cv2.IMREAD_GRAYSCALE)
+reference_img = cv2.imread('b_w.jpg', cv2.IMREAD_GRAYSCALE)
+
+# Apply histogram matching
+matched_img = histogram_matching(source_img, reference_img)
+
+# Display the result
+cv2.imshow('Source Image', source_img)
+cv2.imshow('Reference Image', reference_img)
+cv2.imshow('Matched Image', matched_img)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+
