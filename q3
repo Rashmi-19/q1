@@ -1,77 +1,34 @@
-#WS9 q3
-# Three address code - QUADRUPLES
+def expected_sum_discounted_rewards(states, rewards, transitions, discount_factor, initial_state):
 
-from prettytable import PrettyTable
 
-exp = input("Enter arithmetic expression with appropriate brackets: ")
-print("\nARITHMETIC EXPRESSION: ", exp)
+  # Initialize a dictionary to store expected rewards for each state
+  value_of_states = {state: 0 for state in states}
 
-operators=['*','+','-','/']
-asg = exp[0]
-stack = list(exp[2:])
+  # Iterate for multiple steps to achieve convergence (optional)
+  for _ in range(10):  # Adjust the number of iterations as needed
+    # Update value for each state using the Bellman equation
+    for state in states:
+      expected_future_reward = 0
+      for next_state, probability in transitions[state].items():
+        # Expected future reward considering all possible next states
+        expected_future_reward += probability * (rewards[next_state] + discount_factor * value_of_states[next_state])
+      value_of_states[state] = rewards[state] + discount_factor * expected_future_reward
 
-#print("ASG: ", asg)
-#print("EXP: ", exp)
+  return value_of_states
 
-int_code = {}
-count = 0
+# Example usage (replace placeholders with your actual values)
+states = ["Sunny", "Windy", "Hail"]
+rewards = {"Sunny": 4, "Windy": 0, "Hail": -8}
+transitions = {
+  "Sunny": {"Sunny": 0.5, "Windy": 0.5, "Hail": 0.5},
+  "Windy": {"Sunny": 0.5, "Windy": 0.5, "Hail": 0.5},
+  "Hail": {"Sunny": 0.5, "Windy": 0.5, "Hail": 0.5},
+}
+discount_factor = 0.9
+initial_state = "Sunny"
 
-for i in range(len(exp)):
-    if exp[i] == ')':
-        s = ''
-        while stack[-1] != '(':
-            s = stack.pop()+s
-        stack.pop()  # Remove the '('
+expected_rewards = expected_sum_discounted_rewards(states, rewards, transitions, discount_factor, initial_state)
 
-        count += 1
-        temp_var = 'T' + str(count)
-        int_code[temp_var] = s
-        stack.append(temp_var)
-    else:
-        stack.append(exp[i])
-
-int_code[asg]='T'+str(count)
-
-print("\n\nFinal Three Address Code:\n")
-for key, value in int_code.items():
-    print(key, '=', value)
-
-op=[]
-arg1=[]
-arg2=[]
-res=[]
-print("\n\nQUADRAPLES\n")
-print(int_code)
-for k,v in int_code.items():
-
-  if v[0]=='-':
-    op.append(v[0])
-    arg1.append(v[1:])
-    arg2.append('-')
-    res.append(k)
-  else:
-    flag=0
-    for i in operators:
-      if i in v:
-        flag=1
-        ind=v.index(i)
-        op.append(v[ind])
-        arg1.append(v[0:ind])
-        arg2.append(v[ind+1:])
-        res.append(k)
-        break
-    if flag==0:
-      op.append('=')
-      arg1.append(v)
-      arg2.append('-')
-      res.append(k)
-
-table=PrettyTable(['OPERATOR','ARG1','ARG2','RESULT'])
-
-for i in range(len(op)):
-  table.add_row([''.join(op[i]),''.join(arg1[i]),''.join(arg2[i]),''.join(res[i])])
-
-print(table)
-
-#A=((A+(B*C))-D)
-#A=((-B)+(C*D))
+print(f"Expected sum of discounted rewards for each state:")
+for state, reward in expected_rewards.items():
+  print(f"\t{state}: {reward:.2f}")
