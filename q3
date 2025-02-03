@@ -1,78 +1,87 @@
-# HISTOGRAM EQUALIZATION
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <omp.h>
 
-import cv2
-import numpy as np
-import random   
-import matplotlib.pyplot as plt
+#define NUM_CHAIRS 5        // Number of waiting chairs
+#define NUM_CUSTOMERS 10    // Number of customers arriving
+#define HAIRCUT_DURATION 5  // Duration of a haircut in seconds
 
-image = cv2.imread('b_w.jpg', cv2.COLOR_BGR2GRAY)
+// Semaphores and shared resources
+int waiting_customers = 0;
+sem_t mutex;                // Mutex for shared variables
+sem_t barber_available;      // Semaphore to indicate barber is available
+sem_t customer_ready;        // Semaphore to indicate a customer is ready
 
-histogram = cv2.calcHist(image, [0], None, [256], [0, 256])
+// Barber Function
+void* barber(void* arg) {
+    while (1) {
+        sem_wait(&customer_ready);  // Wait for a customer to be ready
+        sem_wait(&mutex);           // Lock critical section
+        
+        waiting_customers--;        // One customer is getting a haircut
+        printf("Barber is cutting hair. Waiting customers: %d\n", waiting_customers);
+        
+        sem_post(&mutex);           // Unlock critical section
+        sleep(HAIRCUT_DURATION);    // Simulate haircut time
+        
+        sem_post(&barber_available); // Signal that the barber is available
+    }
+}
 
-plt.xlabel("pixel value")
-plt.ylabel("count")
-plt.plot(histogram)
-plt.legend()
-plt.show()
+// Customer Function
+void* customer(void* arg) {
+    int id = *(int*)arg;
+    sem_wait(&mutex); // Lock critical section
 
-eq_histogram_image = cv2.equalizeHist(image)
-eq_histogram = cv2.calcHist(eq_histogram_image, [0], None, [256], [0, 256])
+    if (waiting_customers < NUM_CHAIRS) {
+        waiting_customers++; // Increment waiting customers
+        printf("Customer %d is waiting. Total waiting customers: %d\n", id, waiting_customers);
+        
+        sem_post(&mutex); // Unlock critical section
+        sem_post(&customer_ready);  // Notify the barber
+        sem_wait(&barber_available); // Wait for the barber to finish
+        
+        printf("Customer %d is getting a haircut.\n", id);
+    } else {
+        printf("Customer %d found no available chairs and left the shop.\n", id);
+        sem_post(&mutex); // Unlock critical section
+    }
+    return NULL;
+}
 
+int main() {
+    pthread_t barber_thread;
+    pthread_t customers[NUM_CUSTOMERS];
+    int customer_ids[NUM_CUSTOMERS];
 
-plt.xlabel("pixel value")
-plt.ylabel("count")
-plt.plot(eq_histogram)
-plt.legend()
-plt.show()
+    // Initialize semaphores
+    sem_init(&mutex, 0, 1);
+    sem_init(&barber_available, 0, 0);
+    sem_init(&customer_ready, 0, 0);
 
-cv2.imshow("original", image)
-cv2.waitKey(0)
+    // Create the barber thread
+    pthread_create(&barber_thread, NULL, barber, NULL);
 
-cv2.imshow("Equalized", eq_histogram_image)
-cv2.waitKey(0)
+    // Simulate customer arrivals using OpenMP parallelism
+    #pragma omp parallel for
+    for (int i = 0; i < NUM_CUSTOMERS; i++) {
+        sleep(rand() % 2 + 1); // Random arrival time
+        customer_ids[i] = i + 1;
+        pthread_create(&customers[i], NULL, customer, &customer_ids[i]);
+    }
 
-cv2.destroyAllWindows()
+    // Join customer threads
+    for (int i = 0; i < NUM_CUSTOMERS; i++) {
+        pthread_join(customers[i], NULL);
+    }
 
-# HISTOGRAM MATCHING
+    // Cleanup semaphores
+    sem_destroy(&mutex);
+    sem_destroy(&barber_available);
+    sem_destroy(&customer_ready);
 
-import cv2
-import numpy as np
-
-def histogram_matching(source, reference):
-    # Calculate the histograms.
-    src_hist, bins = np.histogram(source.flatten(), 256, [0,256])
-    ref_hist, bins = np.histogram(reference.flatten(), 256, [0,256])
-
-    # Calculate the cumulative distribution function for both histograms.
-    src_cdf = np.cumsum(src_hist)
-    src_cdf_normalized = src_cdf / float(src_cdf.max())
-    ref_cdf = np.cumsum(ref_hist)
-    ref_cdf_normalized = ref_cdf / float(ref_cdf.max())
-
-    # Create a lookup table to map pixel values from the source to the reference.
-    lookup_table = np.zeros(256)
-    g_j = 0
-    for g_i in range(256):
-        while ref_cdf_normalized[g_j] < src_cdf_normalized[g_i] and g_j < 255:
-            g_j += 1
-        lookup_table[g_i] = g_j
-
-    # Map the pixel values of the source image through the lookup table.
-    matched_image = lookup_table[source.flatten()].reshape(source.shape).astype(np.uint8)
-
-    return matched_image
-
-# Load source and reference images
-source_img = cv2.imread('scenery.jpg', cv2.IMREAD_GRAYSCALE)
-reference_img = cv2.imread('b_w.jpg', cv2.IMREAD_GRAYSCALE)
-
-# Apply histogram matching
-matched_img = histogram_matching(source_img, reference_img)
-
-# Display the result
-cv2.imshow('Source Image', source_img)
-cv2.imshow('Reference Image', reference_img)
-cv2.imshow('Matched Image', matched_img)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
-
+    return 0;
+}
