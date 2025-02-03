@@ -1,62 +1,83 @@
-import turtle
+#include <iostream>
+#include <stdlib.h>
+#include <omp.h>
 
-def dragon_curve(turtle, order, length, direction):
-    if order == 0:
-        turtle.forward(length)
-    else:
-        dragon_curve(turtle, order - 1, length, 1)
-        turtle.right(90 * direction)
-        dragon_curve(turtle, order - 1, length, -1)
+using namespace std;
 
-turtle.speed(0)
-dragon_curve(turtle, 10, 5, 1)
-turtle.done()
+#define SIZE 100
 
+void generateRandomBySwap(int *arr, int n) {
+    for(int i = 0; i < n; i++) {
+        arr[i] = i;
+    }
+    for(int i = 0; i < n; i++) {
+        int j = rand() % n;
+        int t = arr[i];
+        arr[i] = arr[j];
+        arr[j] = t;
+    }
+}
 
-import turtle
-import random
-n=int(input("number of iterations of the terrain (give less than 10 ):-"))
-#try to give the iterations as even numbers to see symmetry
-# powers of 2 are more prefereable
-step=float(input("step length for forward propagation :- "))
-#adjust this step value to increase the size of the curve
-#note as you increase the number of intersections , decrease the forward step value
+void display(int *arr, int n) {
+    for(int i = 0; i < n; i++) {
+        cout<<arr[i]<<"|";
+    }
+    cout<<"\n";
+}
 
-"""
-L system used :- 
-variables : F
-constants : + *
-start  : F
-rules  : (F -> F+F*F+F)
-angle  : 60°,120°
-Here, F means "draw forward", + means "turn left by angle" , and * means turn right by 120 deg
-"""
-def generate_string(n):
-    if n == 0:
-        return "F"
-    else:
-        prev_string = generate_string(n-1)
-        new_string = ""
-        for char in prev_string:
-            if char == "F":
-                new_string += "F+F*F+F"
-            else:
-                new_string += char
-        return new_string
-draw_string=generate_string(n)
-print(len(draw_string))
-turtle.penup()
-turtle.goto(-150, -150)#starting pos of turtle to draw the curve
-turtle.pendown()
-turtle.speed(1000000)#speed of drawing can be still increased
-for i in draw_string:
-    if i=='F':
-        color = (random.random(), random.random(), random.random())  # Random RGB color
-        turtle.color(color)
-        turtle.forward(step)
-    elif i=='+':
-        turtle.left(60)
-    elif i=='*':
-        turtle.right(120)
-turtle.done()
-    
+int partition(int arr[], int start, int end) {
+    int pivot = arr[end];
+    int i = start - 1;
+
+    for(int j = start; j <= end - 1; j++) {
+        if(arr[j] < pivot) {
+            i++;
+            int temp = arr[i];
+            arr[i] = arr[j];
+            arr[j] = temp;
+        }
+    }
+    int temp = arr[i + 1];
+    arr[i + 1] = arr[end];
+    arr[end] = temp;
+
+    return (i + 1);
+}
+
+void quicksort(int arr[], int start, int end) {
+    int index;
+    if(start < end) {
+        index = partition(arr, start, end);
+
+        #pragma omp parallel sections
+        {
+            #pragma omp section
+            {
+                quicksort(arr, start, index - 1);
+            }
+            #pragma omp section
+            {
+                quicksort(arr, index + 1, end);
+            }
+        }
+    }
+}
+
+int main() {
+    int n = SIZE;
+    int arr[n];
+    generateRandomBySwap(arr, n);
+
+    cout<<"List before sorting:\n";
+    display(arr, n);
+
+    double start = omp_get_wtime();
+
+    quicksort(arr, 0, n - 1);
+
+    double stop = omp_get_wtime();
+
+    cout<<"List after sorting:\n";
+    display(arr, n);
+    cout<<"Time: "<<stop - start<<"\n";
+}
