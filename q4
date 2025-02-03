@@ -1,84 +1,72 @@
-# MAX FILTER
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <omp.h>
 
-import cv2
-import numpy as np
+#define NUM_PHILOSOPHERS 5  // Number of philosophers
+#define NUM_MEALS 1         // Number of meals each philosopher eats
 
-def max_filter(image, kernel_size):
-    kernel = np.ones((kernel_size, kernel_size), np.uint8)
-    return cv2.dilate(image, kernel)
+// Forks (represented as semaphores)
+sem_t forks[NUM_PHILOSOPHERS];
 
-# Example usage
-image = cv2.imread("img.png")
-kernel_size = 5  # Adjust kernel size as needed
-max_filtered_image = max_filter(image, kernel_size)
-cv2.imshow("Max Filtered Image", max_filtered_image)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+// Philosopher function
+void* philosopher(void* arg) {
+    int id = *(int*)arg;
 
-# MEAN FILTER
+    for (int meal = 0; meal < NUM_MEALS; meal++) {
+        // Thinking
+        printf("Philosopher %d is thinking.\n", id);
+        sleep(rand() % 3 + 1);  // Simulate thinking time
 
-import cv2
+        // Pick up left fork
+        sem_wait(&forks[id]);
+        printf("Philosopher %d picked up left fork.\n", id);
 
-def mean_filter(image, kernel_size):
-    return cv2.blur(image, (kernel_size, kernel_size))
+        // Pick up right fork
+        sem_wait(&forks[(id + 1) % NUM_PHILOSOPHERS]);
+        printf("Philosopher %d picked up right fork.\n", id);
 
-# Example usage
-image = cv2.imread("img.png")
-kernel_size = 5  # Adjust kernel size as needed
-mean_filtered_image = mean_filter(image, kernel_size)
-cv2.imshow("Mean Filtered Image", mean_filtered_image)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+        // Eating
+        printf("Philosopher %d is eating.\n", id);
+        sleep(rand() % 3 + 1);  // Simulate eating time
 
-# MEDIAN FILTER
+        // Put down forks
+        sem_post(&forks[id]);
+        sem_post(&forks[(id + 1) % NUM_PHILOSOPHERS]);
+        printf("Philosopher %d put down both forks.\n", id);
+    }
 
-import cv2
+    printf("Philosopher %d has finished eating.\n", id);
+    return NULL;
+}
 
-def median_filter(image, kernel_size):
-    return cv2.medianBlur(image, kernel_size)
+int main() {
+    pthread_t philosophers[NUM_PHILOSOPHERS];
+    int ids[NUM_PHILOSOPHERS];
 
-# Example usage
-image = cv2.imread("img.png")
-kernel_size = 5  # Adjust kernel size as needed
-median_filtered_image = median_filter(image, kernel_size)
-cv2.imshow("Median Filtered Image", median_filtered_image)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+    // Initialize semaphores (forks)
+    for (int i = 0; i < NUM_PHILOSOPHERS; i++) {
+        sem_init(&forks[i], 0, 1);
+    }
 
-# MIN FILTER
+    // Simulate philosophers using OpenMP parallelism
+    #pragma omp parallel for
+    for (int i = 0; i < NUM_PHILOSOPHERS; i++) {
+        ids[i] = i;
+        pthread_create(&philosophers[i], NULL, philosopher, &ids[i]);
+    }
 
-import cv2
-import numpy as np
+    // Wait for all philosophers to finish
+    for (int i = 0; i < NUM_PHILOSOPHERS; i++) {
+        pthread_join(philosophers[i], NULL);
+    }
 
-def min_filter(image, kernel_size):
-    kernel = np.ones((kernel_size, kernel_size), np.uint8)
-    return cv2.erode(image, kernel)
+    // Cleanup semaphores
+    for (int i = 0; i < NUM_PHILOSOPHERS; i++) {
+        sem_destroy(&forks[i]);
+    }
 
-# Example usage
-image = cv2.imread("img.png")
-kernel_size = 5  # Adjust kernel size as needed
-min_filtered_image = min_filter(image, kernel_size)
-cv2.imshow("Min Filtered Image", min_filtered_image)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
-
-# LOG TRANSFORMATION
-
-import cv2
-import numpy as np
-
-def log_transformation(image):
-    # Normalizing the pixel values
-    normalized_image = cv2.normalize(image, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
-    # Applying log transformation
-    transformed_image = np.log1p(normalized_image)
-    # Denormalizing the pixel values
-    transformed_image = cv2.normalize(transformed_image, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-    return transformed_image
-
-# Example usage
-image = cv2.imread("img.png", cv2.IMREAD_GRAYSCALE)
-log_transformed_image = log_transformation(image)
-cv2.imshow("Log Transformed Image", log_transformed_image)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+    return 0;
+}
