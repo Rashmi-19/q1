@@ -1,55 +1,83 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <omp.h>
+#include <semaphore.h>
 
-inputImg = cv.imread("scenery.jpg")
+#define CAPACITY 10 // Buffer capacity
+#define ITEMS_TO_PRODUCE 20
 
-'''
-# display the image as such
-cv.imshow('Input Image', inputImg)
-cv.waitKey(0)
-'''
+int buffer[CAPACITY];  // Shared buffer
+int in_index = 0, out_index = 0;
 
-'''
-# display the image after converting to gray
-grayImg = cv.cvtColor(inputImg, cv.COLOR_RGB2GRAY)
-cv.imshow("Gray Image", grayImg)
-cv.waitKey(0)
-'''
+// Semaphores
+sem_t mutex, empty, full;
 
-'''
-# resize an image
-resizeImg = cv.resize(inputImg, (200, 200))
-cv.imshow("Resized Image", resizeImg)
-cv.waitKey(0)
-cv.imwrite("Resized_Image.jpg", resizeImg)
-'''
+// Producer Function
+void producer() {
+    int items_produced = 0, counter = 0;
+    
+    while (items_produced < ITEMS_TO_PRODUCE) {
+        sem_wait(&empty);  // Wait if buffer is full
+        sem_wait(&mutex);  // Lock critical section
 
-# convert to HSV and extract specific color images
-hsv = cv.cvtColor(inputImg, cv.COLOR_BGR2HSV)
+        counter++;
+        buffer[in_index] = counter;
+        in_index = (in_index + 1) % CAPACITY;
+        printf("Producer produced: %d\n", counter);
 
-# to extract green
-green = np.uint8([[[0, 255, 0]]])
-hsvGreen = cv.cvtColor(green, cv.COLOR_BGR2HSV)
+        sem_post(&mutex);  // Release lock
+        sem_post(&full);   // Signal consumer
+        
+        sleep(1);  // Simulate production time
+        items_produced++;
+    }
+}
 
-hueGreen = hsvGreen[0][0][0]
-lowerGreen = np.array([hueGreen - 10, 100, 100])
-upperGreen = np.array([hueGreen + 10, 255, 255]) 
+// Consumer Function
+void consumer() {
+    int items_consumed = 0;
+    
+    while (items_consumed < ITEMS_TO_PRODUCE) {
+        sem_wait(&full);   // Wait if buffer is empty
+        sem_wait(&mutex);  // Lock critical section
 
-maskGreen = cv.inRange(hsv, lowerGreen, upperGreen)
+        int item = buffer[out_index];
+        out_index = (out_index + 1) % CAPACITY;
+        printf("Consumer consumed item: %d\n", item);
 
-# to extract blue
-blue = np.uint8([[[255, 0, 0]]])
-hsvBlue = cv.cvtColor(blue, cv.COLOR_BGR2HSV)
+        sem_post(&mutex);  // Release lock
+        sem_post(&empty);  // Signal producer
 
-hueBlue = hsvBlue[0][0][0]
-lowerBlue = np.array([hueBlue - 10, 100, 100])
-upperBlue = np.array([hueBlue + 10, 255, 255])
+        sleep(2.5);  // Simulate consumption time
+        items_consumed++;
+    }
+}
 
-maskBlue = cv.inRange(hsv, lowerBlue, upperBlue)
+int main() {
+    // Initialize semaphores
+    sem_init(&mutex, 0, 1);
+    sem_init(&empty, 0, CAPACITY);
+    sem_init(&full, 0, 0);
 
-mask = maskGreen + maskBlue
+    // Parallel region using OpenMP
+    #pragma omp parallel sections
+    {
+        #pragma omp section
+        {
+            producer();
+        }
 
-res = cv.bitwise_and(inputImg, inputImg, mask=mask)
+        #pragma omp section
+        {
+            consumer();
+        }
+    }
 
-cv.imshow("Masked", mask)
-cv.waitKey(0)
-cv.imshow("Green", res)
-cv.waitKey(0)
+    // Destroy semaphores
+    sem_destroy(&mutex);
+    sem_destroy(&empty);
+    sem_destroy(&full);
+
+    return 0;
+}
