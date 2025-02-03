@@ -1,24 +1,58 @@
-2)
-# EDGE DETECTION
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <omp.h>
+#include <semaphore.h>
 
-import numpy as np
-import cv2 as cv
-from matplotlib import pyplot as plt
- 
-img = cv.imread('sudoku.jpg', cv.IMREAD_GRAYSCALE)
- 
-laplacian = cv.Laplacian(img, cv.CV_64F)
-sobelx = cv.Sobel(img, cv.CV_64F, 1, 0, ksize = 5)
-sobely = cv.Sobel(img, cv.CV_64F, 0, 1, ksize = 5)
- 
-plt.subplot(2, 2, 1), plt.imshow(img, cmap = 'gray')
-plt.title('Original'), plt.xticks([]), plt.yticks([])
+// Declare two semaphores
+sem_t sem1, sem2;
 
-plt.subplot(2, 2, 2), plt.imshow(laplacian, cmap = 'gray')
-plt.title('Laplacian'), plt.xticks([]), plt.yticks([])
+// Process 1 Function
+void process_1() {
+    printf("Process 1: Starting execution.\n");
+    sleep(1); // Simulate some work
+    printf("Process 1: Waiting for process 2.\n");
 
-plt.subplot(2, 2, 3), plt.imshow(sobelx, cmap = 'gray')
-plt.title('Sobel X'), plt.xticks([]), plt.yticks([])
+    sem_post(&sem1);  // Signal Process 2
+    sem_wait(&sem2);  // Wait for Process 2's signal
 
-plt.subplot(2, 2, 4), plt.imshow(sobely, cmap = 'gray')
-plt.title('Sobel Y'), plt.xticks([]), plt.yticks([])
+    printf("Process 1: Continuing execution.\n");
+}
+
+// Process 2 Function
+void process_2() {
+    printf("Process 2: Starting execution.\n");
+    sleep(2); // Simulate some work
+    printf("Process 2: Waiting for process 1.\n");
+
+    sem_post(&sem2);  // Signal Process 1
+    sem_wait(&sem1);  // Wait for Process 1's signal
+
+    printf("Process 2: Continuing execution.\n");
+}
+
+int main() {
+    // Initialize semaphores with 0 (blocked state)
+    sem_init(&sem1, 0, 0);
+    sem_init(&sem2, 0, 0);
+
+    // Parallel execution using OpenMP
+    #pragma omp parallel sections
+    {
+        #pragma omp section
+        {
+            process_1();
+        }
+        
+        #pragma omp section
+        {
+            process_2();
+        }
+    }
+
+    // Destroy semaphores
+    sem_destroy(&sem1);
+    sem_destroy(&sem2);
+
+    return 0;
+}
