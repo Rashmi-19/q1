@@ -1,42 +1,58 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <pthread.h>
+#include <omp.h>
 
-5)
-# Python program to draw smily face
-import turtle
+#define BUS_CAPACITY 5  // Total seats in the bus
+#define NUM_PASSENGERS 10 // Total passengers trying to board
 
-# turtle object
-pen = turtle.Turtle()
+pthread_mutex_t lock;  // Mutex for synchronizing access to bus
+int passengers_on_bus = 0; // Counter for passengers onboard
 
-# function for creation of eye
-def eye(col, rad):
-	pen.down()
-	pen.fillcolor(col)
-	pen.begin_fill()
-	pen.circle(rad)
-	pen.end_fill()
-	pen.up()
+// Function to simulate passenger boarding
+void* board_passenger(void* arg) {
+    int id = *(int*)arg;
 
+    sleep(rand() % 2 + 1); // Simulate arrival time
 
-# draw face
-pen.fillcolor('yellow')
-pen.begin_fill()
-pen.circle(100)
-pen.end_fill()
-pen.up()
+    pthread_mutex_lock(&lock);
+    if (passengers_on_bus < BUS_CAPACITY) {
+        passengers_on_bus++;
+        printf("Passenger %d boarded. Seats left: %d\n", id, BUS_CAPACITY - passengers_on_bus);
+    } else {
+        printf("Passenger %d couldn't board. The bus is full.\n", id);
+    }
+    pthread_mutex_unlock(&lock);
+    
+    return NULL;
+}
 
-# draw eyes
-pen.goto(-40, 120)
-eye('white', 15)
-pen.goto(-37, 125)
-eye('black', 5)
-pen.goto(40, 120)
-eye('white', 15)
-pen.goto(40, 125)
-eye('black', 5)
+int main() {
+    pthread_t passengers[NUM_PASSENGERS];
+    int ids[NUM_PASSENGERS];
 
+    pthread_mutex_init(&lock, NULL);  // Initialize mutex
 
-# draw mouth
-pen.goto(-40, 85)
-pen.down()
-pen.right(90)
-pen.circle(40, 180)
-pen.up()
+    // Parallel execution using OpenMP
+    #pragma omp parallel for
+    for (int i = 0; i < NUM_PASSENGERS; i++) {
+        ids[i] = i + 1;
+        pthread_create(&passengers[i], NULL, board_passenger, &ids[i]);
+    }
+
+    // Wait for all passenger threads to finish
+    for (int i = 0; i < NUM_PASSENGERS; i++) {
+        pthread_join(passengers[i], NULL);
+    }
+
+    printf("Bus Status: ");
+    if (passengers_on_bus >= BUS_CAPACITY) {
+        printf("The bus is full. It departs now.\n");
+    } else {
+        printf("The bus departs with empty seats.\n");
+    }
+
+    pthread_mutex_destroy(&lock); // Clean up mutex
+    return 0;
+}
